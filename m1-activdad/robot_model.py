@@ -1,10 +1,10 @@
 # robot_model.py
-# Modelo de robots de limpieza reactivos usando Mesa
+# Modelo de robots de limpieza reactivos usando Mesa.
+# Autores: Arellano Conde, Tadeo Emanuel (A01800840)
+#          Grajeda Martínez, Yael Sinuhe (A01801044)
+# Fecha de última modificación: 14/nov/2025
 
-import numpy as np
 import pandas as pd
-import seaborn as sns
-
 import mesa
 from mesa.discrete_space import CellAgent, OrthogonalMooreGrid
 from mesa.visualization import SolaraViz, SpaceRenderer, make_plot_component
@@ -15,18 +15,34 @@ from mesa.visualization.components import AgentPortrayalStyle
 # MÉTRICAS / FUNCIONES AUXILIARES
 # ==========================
 
-def compute_clean_percentage(model: "CleaningModel") -> float:
-    """Porcentaje de celdas limpias en el modelo."""
-    total_cells = model.width * model.height
-    dirty_cells = len(model.dirty_cells)
-    clean_cells = total_cells - dirty_cells
-    if total_cells == 0:
+def computeCleanPercentage(model: "CleaningModel") -> float:
+    """
+    Calcula el porcentaje de celdas limpias en el modelo.
+
+    Parámetros:
+        model: instancia de CleaningModel.
+
+    Regresa:
+        Porcentaje de celdas limpias (0.0 a 100.0).
+    """
+    totalCells = model.width * model.height
+    dirtyCells = len(model.dirtyCells)
+    cleanCells = totalCells - dirtyCells
+    if totalCells == 0:
         return 0.0
-    return 100.0 * clean_cells / total_cells
+    return 100.0 * cleanCells / totalCells
 
 
-def compute_total_moves(model: "CleaningModel") -> int:
-    """Número total de movimientos realizados por todos los agentes."""
+def computeTotalMoves(model: "CleaningModel") -> int:
+    """
+    Calcula el número total de movimientos realizados por todos los agentes.
+
+    Parámetros:
+        model: instancia de CleaningModel.
+
+    Regresa:
+        Entero con el total de movimientos acumulados.
+    """
     return sum(agent.moves for agent in model.agents)
 
 
@@ -35,7 +51,8 @@ def compute_total_moves(model: "CleaningModel") -> int:
 # ==========================
 
 class CleaningAgent(CellAgent):
-    """Robot de limpieza reactivo.
+    """
+    Robot de limpieza reactivo.
 
     Reglas:
     - Si la celda actual está sucia: aspira (la limpia).
@@ -43,44 +60,46 @@ class CleaningAgent(CellAgent):
     """
 
     def __init__(self, model: "CleaningModel", cell):
-        """Crea un nuevo agente de limpieza.
+        """
+        Crea un nuevo agente de limpieza.
 
-        Args:
-            model: instancia del modelo
-            cell: celda inicial donde empieza el agente
+        Parámetros:
+            model: instancia del modelo.
+            cell: celda inicial donde empieza el agente.
         """
         super().__init__(model)
         self.cell = cell
         self.moves = 0  # movimientos efectivos (cambio de celda)
 
-    def _is_current_cell_dirty(self) -> bool:
+    def _isCurrentCellDirty(self) -> bool:
         """Regresa True si la celda actual está sucia."""
         coord = self.cell.coordinate
-        return coord in self.model.dirty_cells
+        return coord in self.model.dirtyCells
 
     def clean(self) -> None:
         """Limpia la celda actual si está sucia."""
         coord = self.cell.coordinate
-        if coord in self.model.dirty_cells:
-            self.model.dirty_cells.remove(coord)
+        if coord in self.model.dirtyCells:
+            self.model.dirtyCells.remove(coord)
 
     def move(self) -> None:
-        """Se mueve a una celda vecina aleatoria (vecindad de Moore, 8 direcciones)."""
-        old_cell = self.cell
-        new_cell = self.cell.neighborhood.select_random_cell()
-        self.cell = new_cell
+        """
+        Se mueve a una celda vecina aleatoria
+        (vecindad de Moore, 8 direcciones).
+        """
+        oldCell = self.cell
+        newCell = self.cell.neighborhood.select_random_cell()
+        self.cell = newCell
 
         # Contamos movimiento solo si cambió de celda
-        if self.cell is not old_cell:
+        if self.cell is not oldCell:
             self.moves += 1
 
     def step(self) -> None:
-        """Un paso de comportamiento del agente."""
-        if self._is_current_cell_dirty():
-            # Si la celda está sucia, aspira
+        """Ejecuta un paso de comportamiento del agente."""
+        if self._isCurrentCellDirty():
             self.clean()
         else:
-            # Si está limpia, se mueve aleatoriamente
             self.move()
 
 
@@ -89,72 +108,75 @@ class CleaningAgent(CellAgent):
 # ==========================
 
 class CleaningModel(mesa.Model):
-    """Modelo de robots de limpieza sobre una grilla MxN.
+    """
+    Modelo de robots de limpieza sobre una grilla MxN.
 
     Parámetros:
-        n_agents: Número de robots.
-        width: Ancho (M) de la habitación.
-        height: Alto (N) de la habitación.
-        dirty_percentage: Porcentaje inicial de celdas sucias (0.0 a 1.0).
-        max_steps: Tiempo máximo (número de pasos de simulación).
+        nAgents: número de robots.
+        width: ancho (M) de la habitación.
+        height: alto (N) de la habitación.
+        dirtyPercentage: porcentaje inicial de celdas sucias (0.0 a 1.0).
+        maxSteps: tiempo máximo (número de pasos de simulación).
     """
 
     def __init__(
         self,
-        n_agents: int = 5,
+        nAgents: int = 5,
         width: int = 10,
         height: int = 10,
-        dirty_percentage: float = 0.3,
-        max_steps: int = 200,
+        dirtyPercentage: float = 0.3,
+        maxSteps: int = 200,
         seed: int | None = None,
     ):
         super().__init__(seed=seed)
 
-        self.num_agents = n_agents
+        self.numAgents = nAgents
         self.width = width
         self.height = height
-        self.dirty_percentage = dirty_percentage
-        self.max_steps = max_steps
+        self.dirtyPercentage = dirtyPercentage
+        self.maxSteps = maxSteps
 
         # Control de ejecución
         self.running = True
-        self.current_step = 0  # tiempo de simulación (steps)
+        self.currentStep = 0  # tiempo de simulación (steps)
 
         # Grid con vecindad de Moore (8 vecinos)
-        self.grid = OrthogonalMooreGrid((width, height), random=self.random)
+        # capacity=None permite múltiples agentes por celda
+        self.grid = OrthogonalMooreGrid(
+            (width, height),
+            torus=False,
+            capacity=None,
+            random=self.random,
+        )
 
         # ---------- Inicializar celdas sucias ----------
-        all_cells = list(self.grid.all_cells.cells)
-        total_cells = width * height
-        n_dirty = int(self.dirty_percentage * total_cells)
-        n_dirty = max(0, min(n_dirty, total_cells))
+        allCells = list(self.grid.all_cells.cells)
+        totalCells = width * height
+        nDirty = int(self.dirtyPercentage * totalCells)
+        nDirty = max(0, min(nDirty, totalCells))
 
-        dirty_sample = self.random.sample(all_cells, k=n_dirty)
+        dirtySample = self.random.sample(allCells, k=nDirty)
         # Conjunto de coordenadas sucias
-        self.dirty_cells: set[tuple[int, int]] = {
-            cell.coordinate for cell in dirty_sample
+        self.dirtyCells: set[tuple[int, int]] = {
+            cell.coordinate for cell in dirtySample
         }
 
         # ---------- Crear agentes ----------
         # Todos empiezan en la celda [1,1] → coordenada (0,0) en código
-        start_cell = self.grid[(0, 0)]
+        startCell = self.grid[(0, 0)]
 
         CleaningAgent.create_agents(
             self,
-            self.num_agents,
-            [start_cell] * self.num_agents,
+            self.numAgents,
+            [startCell] * self.numAgents,
         )
 
         # ---------- DataCollector ----------
-        # Aquí recopilamos durante la ejecución:
-        # - Step: tiempo actual
-        # - CleanPercentage: porcentaje de celdas limpias
-        # - TotalMoves: movimientos totales de todos los agentes
         self.datacollector = mesa.DataCollector(
             model_reporters={
-                "Step": lambda m: m.current_step,
-                "CleanPercentage": compute_clean_percentage,
-                "TotalMoves": compute_total_moves,
+                "Step": lambda m: m.currentStep,
+                "CleanPercentage": computeCleanPercentage,
+                "TotalMoves": computeTotalMoves,
             },
             agent_reporters={
                 "Moves": "moves",
@@ -166,56 +188,66 @@ class CleaningModel(mesa.Model):
 
     # ---------- Utilidades del modelo ----------
 
-    def all_clean(self) -> bool:
-        """True si ya no hay celdas sucias."""
-        return len(self.dirty_cells) == 0
+    def allClean(self) -> bool:
+        """Regresa True si ya no hay celdas sucias."""
+        return len(self.dirtyCells) == 0
 
     # ---------- Paso de simulación ----------
 
     def step(self) -> None:
-        """Un paso del modelo."""
-        # Revisamos condición de paro ANTES de avanzar
-        if self.all_clean() or self.current_step >= self.max_steps:
+        """
+        Ejecuta un paso del modelo.
+
+        Se detiene si:
+        - Ya no hay celdas sucias, o
+        - Se alcanzó el número máximo de pasos (maxSteps).
+        """
+        if self.allClean():
             self.running = False
             return
 
-        self.current_step += 1
+        if self.currentStep >= self.maxSteps:
+            self.running = False
+            return
+
+        # Avanzamos el tiempo
+        self.currentStep += 1
 
         # Todos los agentes actúan en orden aleatorio
         self.agents.shuffle_do("step")
 
-        # Registrar datos
+        # Registrar datos del modelo en este step
         self.datacollector.collect(self)
 
-        # Revisamos nuevamente condición de paro
-        if self.all_clean() or self.current_step >= self.max_steps:
+        if self.allClean():
             self.running = False
 
 
 # ==========================
-# VISUALIZACIÓN (GRID + GRÁFICAS EN OTRA PÁGINA)
+# VISUALIZACIÓN (GRID + GRÁFICAS)
 # ==========================
 
-def agent_portrayal(agent: CleaningAgent) -> AgentPortrayalStyle:
-    """Cómo se dibuja cada agente en el grid.
+def agentPortrayal(agent: CleaningAgent) -> AgentPortrayalStyle:
+    """
+    Define cómo se dibuja cada agente en el grid.
 
     Rojo si la celda donde está es sucia.
     Verde si está limpia.
     """
     coord = agent.cell.coordinate
-    is_dirty = coord in agent.model.dirty_cells
-    color = "tab:red" if is_dirty else "tab:green"
+    isDirty = coord in agent.model.dirtyCells
+    color = "tab:red" if isDirty else "tab:green"
     return AgentPortrayalStyle(color=color, size=50)
 
 
 # Parámetros del modelo para la UI de Mesa/Solara
-model_params = {
-    "n_agents": {
+modelParams = {
+    "nAgents": {
         "type": "SliderInt",
         "value": 5,
         "label": "Número de agentes:",
         "min": 1,
-        "max": 50,
+        "max": 200,
         "step": 1,
     },
     "width": {
@@ -234,7 +266,7 @@ model_params = {
         "max": 30,
         "step": 1,
     },
-    "dirty_percentage": {
+    "dirtyPercentage": {
         "type": "SliderFloat",
         "value": 0.3,
         "label": "Porcentaje inicial de celdas sucias:",
@@ -242,7 +274,7 @@ model_params = {
         "max": 1.0,
         "step": 0.05,
     },
-    "max_steps": {
+    "maxSteps": {
         "type": "SliderInt",
         "value": 200,
         "label": "Tiempo máximo (steps):",
@@ -253,31 +285,31 @@ model_params = {
 }
 
 # Página 1: gráficas (vs Step)
-CleanPlot = make_plot_component("CleanPercentage", page=1)
-MovesPlot = make_plot_component("TotalMoves", page=1)
+cleanPlot = make_plot_component("CleanPercentage", page=1)
+movesPlot = make_plot_component("TotalMoves", page=1)
 
 # Modelo inicial para la visualización interactiva
-clean_model = CleaningModel(
-    n_agents=5,
+cleanModel = CleaningModel(
+    nAgents=5,
     width=10,
     height=10,
-    dirty_percentage=0.3,
-    max_steps=200,
+    dirtyPercentage=0.3,
+    maxSteps=200,
 )
 
 # Render del espacio (Página 0)
-renderer = SpaceRenderer(model=clean_model, backend="matplotlib").render(
-    agent_portrayal=agent_portrayal
+renderer = SpaceRenderer(model=cleanModel, backend="matplotlib").render(
+    agent_portrayal=agentPortrayal
 )
 
 # SolaraViz:
 # - Página 0: grid del modelo
 # - Página 1: gráficas CleanPercentage y TotalMoves
 page = SolaraViz(
-    clean_model,
+    cleanModel,
     renderer,
-    components=[CleanPlot, MovesPlot],
-    model_params=model_params,
+    components=[cleanPlot, movesPlot],
+    model_params=modelParams,
     name="Reactive Cleaning Robot",
 )
 
@@ -286,45 +318,49 @@ page = SolaraViz(
 # EXPERIMENTOS PARA EL REPORTE
 # ==========================
 
-def run_experiment(
-    n_agents: int,
+def runExperiment(
+    nAgents: int,
     width: int,
     height: int,
-    dirty_percentage: float,
-    max_steps: int,
+    dirtyPercentage: float,
+    maxSteps: int,
     seed: int | None = None,
 ):
-    """Ejecuta una simulación y regresa las 3 métricas finales.
+    """
+    Ejecuta una simulación y regresa las 3 métricas finales.
+
+    Parámetros:
+        nAgents: número de agentes.
+        width: ancho de la grilla.
+        height: alto de la grilla.
+        dirtyPercentage: porcentaje inicial de celdas sucias.
+        maxSteps: pasos máximos permitidos.
+        seed: semilla para el generador aleatorio (opcional).
 
     Regresa:
-        time_used: tiempo (steps) hasta limpiar todo o llegar al máximo.
-        final_clean_pct: porcentaje de celdas limpias al final.
-        final_total_moves: número total de movimientos de todos los agentes.
+        timeUsed: pasos utilizados hasta limpiar todo o llegar al máximo.
+        finalCleanPct: porcentaje de celdas limpias al final.
+        finalTotalMoves: número total de movimientos.
         model: instancia final del modelo.
     """
     model = CleaningModel(
-        n_agents=n_agents,
+        nAgents=nAgents,
         width=width,
         height=height,
-        dirty_percentage=dirty_percentage,
-        max_steps=max_steps,
+        dirtyPercentage=dirtyPercentage,
+        maxSteps=maxSteps,
         seed=seed,
     )
 
-    # Ejecutar hasta que termine (todo limpio o max_steps)
+    # Ejecutar hasta que termine (todo limpio o maxSteps)
     while model.running:
         model.step()
 
-    # 1) Tiempo necesario
-    time_used = model.current_step
+    timeUsed = model.currentStep
+    finalCleanPct = computeCleanPercentage(model)
+    finalTotalMoves = computeTotalMoves(model)
 
-    # 2) Porcentaje de celdas limpias al final
-    final_clean_pct = compute_clean_percentage(model)
-
-    # 3) Número de movimientos de todos los agentes
-    final_total_moves = compute_total_moves(model)
-
-    return time_used, final_clean_pct, final_total_moves, model
+    return timeUsed, finalCleanPct, finalTotalMoves, model
 
 
 # ==========================
@@ -335,36 +371,36 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     # Cantidades de agentes a probar
-    agent_values = [1, 2, 3, 5, 8, 10, 15, 20]
+    agentValues = [1, 2, 3, 5, 8, 10, 15, 20, 40, 80, 100]
 
     rows = []
 
-    for n in agent_values:
-        time_used, final_clean_pct, final_total_moves, _ = run_experiment(
-            n_agents=n,
+    for n in agentValues:
+        timeUsed, finalCleanPct, finalTotalMoves, _ = runExperiment(
+            nAgents=n,
             width=20,
             height=20,
-            dirty_percentage=0.3,
-            max_steps=1000,
-            seed=123,
+            dirtyPercentage=0.4,
+            maxSteps=1000,
+            seed=None,
         )
         rows.append({
-            "n_agents": n,
-            "time_used": time_used,
-            "final_clean_pct": final_clean_pct,
-            "final_total_moves": final_total_moves,
+            "nAgents": n,
+            "timeUsed": timeUsed,
+            "finalCleanPct": finalCleanPct,
+            "finalTotalMoves": finalTotalMoves,
         })
 
-    df_results = pd.DataFrame(rows)
-    print(df_results)
+    dfResults = pd.DataFrame(rows)
+    print(dfResults)
 
     # ========= Gráfica 1 — Tiempo vs número de agentes =========
     plt.figure(figsize=(7, 4))
     plt.plot(
-        df_results["n_agents"],
-        df_results["time_used"],
+        dfResults["nAgents"],
+        dfResults["timeUsed"],
         marker="o",
-        linestyle="-"
+        linestyle="-",
     )
     plt.title("Tiempo de limpieza vs número de agentes")
     plt.xlabel("Número de agentes")
@@ -376,10 +412,10 @@ if __name__ == "__main__":
     # ========= Gráfica 2 — Movimientos totales vs número de agentes =========
     plt.figure(figsize=(7, 4))
     plt.plot(
-        df_results["n_agents"],
-        df_results["final_total_moves"],
+        dfResults["nAgents"],
+        dfResults["finalTotalMoves"],
         marker="o",
-        linestyle="-"
+        linestyle="-",
     )
     plt.title("Movimientos totales vs número de agentes")
     plt.xlabel("Número de agentes")
